@@ -47,12 +47,13 @@ def crawl_gnews_data(
     """
     start_date = datetime.strptime(start_date, "%Y-%m-%dT%H:%M:%SZ")
     end_date = datetime.strptime(end_date, "%Y-%m-%dT%H:%M:%SZ")
-    file_path = os.path.join(RAW_DATA_PATH, f"{name}_news.csv")
+    file_path = os.path.join(RAW_DATA_PATH, f"{name}_articles.csv")
 
     print("Crawling GNews data...")
     print(f"Search term: {search_term}")
     print(f"Begin date: {start_date}")
     print(f"End date: {end_date}")
+    print(f"key: {GNEWS_API_KEY}")
 
     if os.path.exists(file_path):
         os.remove(file_path)
