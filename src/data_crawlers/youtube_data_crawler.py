@@ -18,6 +18,8 @@ def get_video_id(
     video_id_list = []
     url = "https://yt.lemnoslife.com/noKey/search"
 
+    print(f"Getting video IDs for {iterations} iterations...")
+
     for i in range(1, iterations + 1):
         parameters = {
             "part": "id,snippet",
@@ -47,35 +49,6 @@ def get_video_id(
     return video_ids
 
 
-def get_video_like_ratio(video_ids: list):
-    """
-    Get the like/view ratio of the videos
-    """
-
-    like_ratios = []
-    url = "https://yt.lemnoslife.com/noKey/videos"
-
-    for i, video_id in enumerate(video_ids):
-        parameters = {"part": "id,snippet,statistics", "id": video_id}
-        res = requests.get(url, params=parameters)
-        video_data = res.json()
-
-        try:
-            view_count = int(video_data["items"][0]["statistics"]["viewCount"])
-            like_count = int(video_data["items"][0]["statistics"]["likeCount"])
-            like_ratios.append(like_count / view_count)
-        except (KeyError, IndexError, ZeroDivisionError):
-            print(f"Case {i} pass")
-            like_ratios.append(np.nan)
-
-        print(f"Status: {i + 1} / {len(video_ids)}")
-
-    like_ratios = pd.Series(like_ratios)
-    like_ratios.fillna(like_ratios.mean(), inplace=True)
-
-    return like_ratios.mean()
-
-
 def get_comments(video_ids: list):
     """
     Get comments from the videos
@@ -83,7 +56,10 @@ def get_comments(video_ids: list):
 
     list_text = []
     list_date = []
+    list_video_id = []  # Added list for video IDs
     url = "https://yt.lemnoslife.com/noKey/commentThreads"
+
+    print(f"Getting comments for {len(video_ids)} videos...")
 
     for video_id in video_ids:
         parameters = {"part": "id,snippet", "maxResults": "50", "videoId": video_id}
@@ -98,8 +74,10 @@ def get_comments(video_ids: list):
             comment_df["updateDate"] = pd.to_datetime(
                 comment_df["snippet.topLevelComment.snippet.updatedAt"]
             )
+            comment_df["video_id"] = video_id  # Added video ID to the DataFrame
             list_text.append(comment_df["snippet.topLevelComment.snippet.textOriginal"])
             list_date.append(comment_df["updateDate"])
+            list_video_id.append(comment_df["video_id"])  # Added video ID to the list
 
             print(f"Video ID {video_id}: Found {len(comment_df)} comments")
         except KeyError:
@@ -107,12 +85,48 @@ def get_comments(video_ids: list):
 
     df_text = pd.concat(list_text, axis=0, ignore_index=True)
     df_date = pd.concat(list_date, axis=0, ignore_index=True)
-    df = pd.concat([df_text, df_date], axis=1)
-    df.columns = ["text", "updateDt"]
+    df_video_id = pd.concat(
+        list_video_id, axis=0, ignore_index=True
+    )  # Concatenated video ID list
+    df = pd.concat(
+        [df_text, df_date, df_video_id], axis=1
+    )  # Added video ID to the final DataFrame
+    df.columns = ["text", "updateDt", "video_id"]  # Added video_id to the column names
 
     print(f"Total comments found: {len(df)}")
 
     return df
+
+
+def get_video_stats(video_ids: list):
+    """
+    Get the video stats of the videos
+    """
+
+    stats = []
+    url = "https://yt.lemnoslife.com/noKey/videos"
+
+    print(f"Getting video stats for {len(video_ids)} videos...")
+
+    for i, video_id in enumerate(video_ids):
+        parameters = {"part": "id,snippet,statistics", "id": video_id}
+        res = requests.get(url, params=parameters)
+        video_data = res.json()
+
+        try:
+            view_count = int(video_data["items"][0]["statistics"]["viewCount"])
+            like_count = int(video_data["items"][0]["statistics"]["likeCount"])
+            stats.append([video_id, view_count, like_count])
+        except (KeyError, IndexError):
+            print(f"Case {i} pass")
+            stats.append([video_id, np.nan, np.nan])
+
+        print(f"Status: {i + 1} / {len(video_ids)}")
+
+    stats_df = pd.DataFrame(stats, columns=["video_id", "view_count", "like_count"])
+    print(f"Total video stats found: {len(stats_df)}")
+
+    return stats_df
 
 
 def process_celebrities(celebrities: list):
@@ -125,24 +139,23 @@ def process_celebrities(celebrities: list):
         search_term = celebrity["search_term"]
         start_date = celebrity["start_date"]
         end_date = celebrity["end_date"]
-        file_path = os.path.join(RAW_DATA_PATH, f"{name}_youtube_comments.csv")
+        comments_file_path = os.path.join(RAW_DATA_PATH, f"{name}_youtube_comments.csv")
+        stats_file_path = os.path.join(RAW_DATA_PATH, f"{name}_youtube_stats.csv")
 
         print(f"Processing {name}...")
         print(f"Search Term: {search_term}")
         print(f"Start Date: {start_date}")
         print(f"End Date: {end_date}")
 
-        video_ids = get_video_id(start_date, end_date, 1, search_term)
-        like_ratio = get_video_like_ratio(video_ids)
+        video_ids = get_video_id(start_date, end_date, 20, search_term)  # 1000 videos
+        stats_df = get_video_stats(video_ids)
         comments_df = get_comments(video_ids)
 
-        # Saving raw comments to file
-        comments_df.to_csv(file_path, index=False)
+        # Saving raw comments and stats to file
+        comments_df.to_csv(comments_file_path, index=False)
+        stats_df.to_csv(stats_file_path, index=False)
 
-        # Example outputs
-        print(f"Like/View Ratio for {search_term}: {like_ratio}")
-
-    return comments_df
+    return comments_df, stats_df
 
 
 if __name__ == "__main__":
