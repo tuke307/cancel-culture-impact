@@ -26,7 +26,7 @@ def get_gnews_data(
         "from": begin_date.strftime("%Y-%m-%dT%H:%M:%SZ"),
         "to": end_date.strftime("%Y-%m-%dT%H:%M:%SZ"),
         "q": search_term,
-        "max": 100,  # this is the maximum
+        "max": 50,  # this is the maximum
         "expand": "content",
         "sortby": "publishedAt",  # "relevance", "publishedAt
         "page": page,
@@ -34,7 +34,7 @@ def get_gnews_data(
     response = requests.get(url, params=params)
 
     if response.status_code == 200:
-        return response.json()["articles"]
+        return response.json()
     else:
         return None
 
@@ -59,6 +59,8 @@ def crawl_gnews_data(
 
     page = 1
     total_articles = 0
+    total_articles_showed = False
+
     while True:
         articles = get_gnews_data(
             api_key=GNEWS_API_KEY,
@@ -67,11 +69,15 @@ def crawl_gnews_data(
             search_term=search_term,
             page=page,
         )
-        if not articles:
-            break
+
+        if not total_articles_showed:
+            print(f"A total of {articles['totalArticles']} articles found to crawl")
+            total_articles_showed = True
 
         data = []
-        for article in articles:
+        if len(articles["articles"]) == 0:
+            break
+        for article in articles["articles"]:
             data.append(
                 {
                     "title": article["title"],
@@ -81,10 +87,11 @@ def crawl_gnews_data(
                     "source": article["source"]["name"],
                 }
             )
-
         append_to_csv(file_path, data)
 
         total_articles += len(data)
+        print(f"Page {page} - {len(data)} articles retrieved, total: {total_articles}")
+
         page += 1
 
         # Pause for 0.2 second to avoid exceeding the rate limit of 6 requests per second
