@@ -53,7 +53,6 @@ def crawl_gnews_data(
     print(f"Search term: {search_term}")
     print(f"Begin date: {start_date}")
     print(f"End date: {end_date}")
-    print(f"key: {GNEWS_API_KEY}")
 
     if os.path.exists(file_path):
         os.remove(file_path)
