@@ -2,35 +2,10 @@ import os
 import pandas as pd
 import numpy as np
 import requests
-import nltk
-import json
 import sys
-from nltk.sentiment.vader import SentimentIntensityAnalyzer
-from googletrans import Translator
-from tqdm import tqdm
-import emoji
-from nltk.tokenize import word_tokenize
-from nltk.corpus import stopwords
-import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
-
-from config import RAW_DATA_PATH
-
-# Get the directory of the current script
-script_dir = os.path.dirname(os.path.abspath(__file__))
-
-# Construct the path to config.json
-config_path = os.path.join(script_dir, "config.json")
-
-with open(config_path, "r") as f:
-    celebrities = json.load(f)
-
-nltk.download("vader_lexicon")
-nltk.download("punkt")
-nltk.download("wordnet")
-nltk.download("stopwords")
-nltk.download("averaged_perceptron_tagger")
+from config import RAW_DATA_PATH, CELEBRITIES
 
 
 def get_video_id(
@@ -67,6 +42,7 @@ def get_video_id(
             nextpagetoken = search_list["nextPageToken"]
 
     video_ids = pd.concat(video_id_list, axis=0, ignore_index=True)
+    print(f"Total video IDs found: {len(video_ids)}")
 
     return video_ids
 
@@ -134,27 +110,9 @@ def get_comments(video_ids: list):
     df = pd.concat([df_text, df_date], axis=1)
     df.columns = ["text", "updateDt"]
 
+    print(f"Total comments found: {len(df)}")
+
     return df
-
-
-def remove_emoji(df: pd.DataFrame):
-    """
-    Remove emojis from the text
-    """
-
-    for i in tqdm(df.index):
-        df.at[i, "text"] = emoji.replace_emoji(df.at[i, "text"], replace="")
-    return df
-
-
-def remove_stopwords(text: str):
-    """
-    Remove stopwords from the text
-    """
-    stop_words = set(stopwords.words("english"))
-    word_tokens = word_tokenize(text)
-    removed_text = [word for word in word_tokens if word not in stop_words]
-    return " ".join(removed_text)
 
 
 def process_celebrities(celebrities: list):
@@ -169,43 +127,14 @@ def process_celebrities(celebrities: list):
         end_date = celebrity["end_date"]
         file_path = os.path.join(RAW_DATA_PATH, f"{name}_youtube_comments.csv")
 
+        print(f"Processing {name}...")
+        print(f"Search Term: {search_term}")
+        print(f"Start Date: {start_date}")
+        print(f"End Date: {end_date}")
+
         video_ids = get_video_id(start_date, end_date, 1, search_term)
         like_ratio = get_video_like_ratio(video_ids)
         comments_df = get_comments(video_ids)
-
-        # Removing emojis, empty comments, and resetting index
-        comments_df = remove_emoji(comments_df)
-        comments_df = comments_df[comments_df["text"].str.strip() != ""]
-        comments_df.reset_index(drop=True, inplace=True)
-
-        translator = Translator(timeout=None)
-        translator.raise_exception = True
-
-        def detect_language(text):
-            detection = translator.detect(text)
-            time.sleep(0.3)  # Avoiding rate limit
-            return detection.lang if detection is not None else "unknown"
-
-        comments_df["source_lang"] = comments_df["text"].apply(detect_language)
-        comments_df = comments_df[
-            comments_df["source_lang"] != "rw"
-        ]  # Remove Kinyarwanda comments
-        comments_df.reset_index(drop=True, inplace=True)
-
-        def translate_text(row):
-            if row["source_lang"] == "en" or row["source_lang"] == "unknown":
-                return row["text"]
-            else:
-                try:
-                    time.sleep(0.3)  # Avoiding rate limit
-                    return translator.translate(
-                        row["text"], src=row["source_lang"], dest="en"
-                    ).text
-                except ValueError:
-                    print(f"Invalid source language: {row['source_lang']}")
-                    return row["text"]
-
-        comments_df["translated_text"] = comments_df.apply(translate_text, axis=1)
 
         # Saving raw comments to file
         comments_df.to_csv(file_path, index=False)
@@ -216,29 +145,5 @@ def process_celebrities(celebrities: list):
     return comments_df
 
 
-def perform_sentiment_analysis(comments_df):
-    """
-    Perform sentiment analysis on the comments
-    """
-
-    senti_analyzer = SentimentIntensityAnalyzer()
-    senti_scores_df = pd.DataFrame()
-
-    # Removing stopwords
-    comments_df["text_no_stopwords"] = comments_df["text"].apply(remove_stopwords)
-
-    for i, text in enumerate(comments_df["text_no_stopwords"]):
-        senti_scores = senti_analyzer.polarity_scores(text)
-        senti_scores_df = pd.concat(
-            [senti_scores_df, pd.DataFrame(senti_scores, index=[i])], axis=0
-        )
-
-    # Example outputs
-    print(f"Sentiment Scores (First 5): \n{senti_scores_df.head()}")
-
-    return senti_scores_df
-
-
 if __name__ == "__main__":
-    comments_df = process_celebrities(celebrities)
-    senti_scores_df = perform_sentiment_analysis(comments_df)
+    process_celebrities(CELEBRITIES)
