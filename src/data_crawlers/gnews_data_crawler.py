@@ -2,26 +2,12 @@ from datetime import datetime
 import requests
 import os
 import time as t
-from helper import append_to_csv
 import sys
-import json
-
-
-# Get the directory of the current script
-script_dir = os.path.dirname(os.path.abspath(__file__))
-
-# Construct the path to config.json
-config_path = os.path.join(script_dir, "config.json")
-
-with open(config_path, "r") as f:
-    celebrities = json.load(f)
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 
-from config import (
-    GNEWS_API_KEY,
-    RAW_DATA_PATH,
-)
+from config import GNEWS_API_KEY, RAW_DATA_PATH, CELEBRITIES
+from helpers.file_functions import append_to_csv
 
 
 def get_gnews_data(
@@ -108,7 +94,7 @@ def crawl_gnews_data(
 
 
 if __name__ == "__main__":
-    for celebrity in celebrities:
+    for celebrity in CELEBRITIES:
         crawl_gnews_data(
             celebrity["name"],
             celebrity["search_term"],
