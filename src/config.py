@@ -1,6 +1,6 @@
 from datetime import datetime, time
 import os
-import sys
+from helpers.file_functions import load_json
 
 # Load environment variables
 from dotenv import load_dotenv
@@ -14,3 +14,7 @@ GNEWS_API_KEY = os.getenv("GNEWS_API_KEY")
 CWD = os.getcwd()
 RAW_DATA_PATH = os.path.join(CWD, "data", "raw")
 PROCESSED_DATA_PATH = os.path.join(CWD, "data", "processed")
+
+# Celebrities
+config_path = os.path.join(CWD, "src", "config.json")
+CELEBRITIES = load_json(config_path)
