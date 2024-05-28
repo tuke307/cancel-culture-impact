@@ -11,7 +11,7 @@ from tqdm import tqdm
 import emoji
 from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
-import datetime as DateTime
+import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 
@@ -33,10 +33,13 @@ nltk.download("stopwords")
 nltk.download("averaged_perceptron_tagger")
 
 
-# Function to get video IDs from YouTube based on date range and artist
 def get_video_id(
-    publishafter: DateTime, publishbefore: DateTime, iterations: int, artist: str
+    publish_after: str, publish_before: str, iterations: int, search_term: str
 ):
+    """
+    Get the video IDs of the videos
+    """
+
     video_id_list = []
     url = "https://yt.lemnoslife.com/noKey/search"
 
@@ -44,10 +47,10 @@ def get_video_id(
         parameters = {
             "part": "id,snippet",
             "maxResults": "50",
-            "q": artist,
+            "q": search_term,
             "type": "video",
-            "publishedBefore": publishbefore,
-            "publishedAfter": publishafter,
+            "publishedBefore": publish_before,
+            "publishedAfter": publish_after,
             "order": "date",
         }
         if i > 1:
@@ -55,23 +58,28 @@ def get_video_id(
 
         res = requests.get(url, params=parameters)
         search_list = res.json()
-
         df = pd.json_normalize(search_list["items"])
         video_id_list.append(df["id.videoId"])
+
+        print(f"Iteration {i}: Found {len(df['id.videoId'])} video IDs")
 
         if "nextPageToken" in search_list:
             nextpagetoken = search_list["nextPageToken"]
 
-    video_id = pd.concat(video_id_list, axis=0, ignore_index=True)
-    return video_id
+    video_ids = pd.concat(video_id_list, axis=0, ignore_index=True)
+
+    return video_ids
 
 
-# Function to get like/view ratio for a list of video IDs
 def get_video_like_ratio(video_ids: list):
+    """
+    Get the like/view ratio of the videos
+    """
+
     like_ratios = []
+    url = "https://yt.lemnoslife.com/noKey/videos"
 
     for i, video_id in enumerate(video_ids):
-        url = "https://yt.lemnoslife.com/noKey/videos"
         parameters = {"part": "id,snippet,statistics", "id": video_id}
         res = requests.get(url, params=parameters)
         video_data = res.json()
@@ -88,17 +96,21 @@ def get_video_like_ratio(video_ids: list):
 
     like_ratios = pd.Series(like_ratios)
     like_ratios.fillna(like_ratios.mean(), inplace=True)
+
     return like_ratios.mean()
 
 
-# Function to get comments from videos
 def get_comments(video_ids: list):
+    """
+    Get comments from the videos
+    """
+
     list_text = []
     list_date = []
+    url = "https://yt.lemnoslife.com/noKey/commentThreads"
 
     for video_id in video_ids:
         parameters = {"part": "id,snippet", "maxResults": "50", "videoId": video_id}
-        url = "https://yt.lemnoslife.com/noKey/commentThreads"
         res = requests.get(url, params=parameters)
         comment_list = res.json()
 
@@ -112,6 +124,8 @@ def get_comments(video_ids: list):
             )
             list_text.append(comment_df["snippet.topLevelComment.snippet.textOriginal"])
             list_date.append(comment_df["updateDate"])
+
+            print(f"Video ID {video_id}: Found {len(comment_df)} comments")
         except KeyError:
             pass
 
@@ -119,26 +133,35 @@ def get_comments(video_ids: list):
     df_date = pd.concat(list_date, axis=0, ignore_index=True)
     df = pd.concat([df_text, df_date], axis=1)
     df.columns = ["text", "updateDt"]
+
     return df
 
 
-# Function to remove emojis from text
 def remove_emoji(df: pd.DataFrame):
+    """
+    Remove emojis from the text
+    """
+
     for i in tqdm(df.index):
         df.at[i, "text"] = emoji.replace_emoji(df.at[i, "text"], replace="")
     return df
 
 
-# Function to remove stopwords from text
 def remove_stopwords(text: str):
+    """
+    Remove stopwords from the text
+    """
     stop_words = set(stopwords.words("english"))
     word_tokens = word_tokenize(text)
     removed_text = [word for word in word_tokens if word not in stop_words]
     return " ".join(removed_text)
 
 
-# Main function to process each celebrity
 def process_celebrities(celebrities: list):
+    """
+    Process the celebrities
+    """
+
     for celebrity in celebrities:
         name = celebrity["name"]
         search_term = celebrity["search_term"]
@@ -155,23 +178,32 @@ def process_celebrities(celebrities: list):
         comments_df = comments_df[comments_df["text"].str.strip() != ""]
         comments_df.reset_index(drop=True, inplace=True)
 
-        translator = Translator()
+        translator = Translator(timeout=None)
+        translator.raise_exception = True
 
         def detect_language(text):
             detection = translator.detect(text)
+            time.sleep(0.3)  # Avoiding rate limit
             return detection.lang if detection is not None else "unknown"
 
         comments_df["source_lang"] = comments_df["text"].apply(detect_language)
-        comments_df = comments_df[comments_df["source_lang"] != "rw"] # Remove Kinyarwanda comments
+        comments_df = comments_df[
+            comments_df["source_lang"] != "rw"
+        ]  # Remove Kinyarwanda comments
         comments_df.reset_index(drop=True, inplace=True)
 
         def translate_text(row):
-            if row["source_lang"] == "en":
+            if row["source_lang"] == "en" or row["source_lang"] == "unknown":
                 return row["text"]
             else:
-                return translator.translate(
-                    row["text"], src=row["source"], dest="en"
-                ).text
+                try:
+                    time.sleep(0.3)  # Avoiding rate limit
+                    return translator.translate(
+                        row["text"], src=row["source_lang"], dest="en"
+                    ).text
+                except ValueError:
+                    print(f"Invalid source language: {row['source_lang']}")
+                    return row["text"]
 
         comments_df["translated_text"] = comments_df.apply(translate_text, axis=1)
 
@@ -185,7 +217,10 @@ def process_celebrities(celebrities: list):
 
 
 def perform_sentiment_analysis(comments_df):
-    # Sentiment analysis
+    """
+    Perform sentiment analysis on the comments
+    """
+
     senti_analyzer = SentimentIntensityAnalyzer()
     senti_scores_df = pd.DataFrame()
 
@@ -204,5 +239,6 @@ def perform_sentiment_analysis(comments_df):
     return senti_scores_df
 
 
-comments_df = process_celebrities(celebrities)
-senti_scores_df = perform_sentiment_analysis(comments_df)
+if __name__ == "__main__":
+    comments_df = process_celebrities(celebrities)
+    senti_scores_df = perform_sentiment_analysis(comments_df)
