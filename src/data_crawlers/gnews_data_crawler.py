@@ -11,9 +11,9 @@ import json
 script_dir = os.path.dirname(os.path.abspath(__file__))
 
 # Construct the path to config.json
-config_path = os.path.join(script_dir, 'config.json')
+config_path = os.path.join(script_dir, "config.json")
 
-with open(config_path, 'r') as f:
+with open(config_path, "r") as f:
     celebrities = json.load(f)
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
@@ -25,7 +25,11 @@ from config import (
 
 
 def get_gnews_data(
-    api_key: str, begin_date: datetime, end_date: datetime, search_term: str, page: int = 1
+    api_key: str,
+    begin_date: datetime,
+    end_date: datetime,
+    search_term: str,
+    page: int = 1,
 ):
     """
     Get news articles from GNews API.
@@ -49,7 +53,9 @@ def get_gnews_data(
         return None
 
 
-def crawl_gnews_data(name: str, search_term: str, start_date: str, end_date: str) -> None:
+def crawl_gnews_data(
+    name: str, search_term: str, start_date: str, end_date: str
+) -> None:
     """
     Crawl news articles from GNews API and save them to a CSV file.
     """
@@ -103,4 +109,9 @@ def crawl_gnews_data(name: str, search_term: str, start_date: str, end_date: str
 
 if __name__ == "__main__":
     for celebrity in celebrities:
-        crawl_gnews_data(celebrity['name'], celebrity['search_term'], celebrity['start_date'], celebrity['end_date'])
+        crawl_gnews_data(
+            celebrity["name"],
+            celebrity["search_term"],
+            celebrity["start_date"],
+            celebrity["end_date"],
+        )
