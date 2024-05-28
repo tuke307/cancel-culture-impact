@@ -1,67 +1,38 @@
 import pandas as pd
-from pytrends.request import TrendReq
 import os
 import sys
-import time
+from serpapi import GoogleSearch
 from datetime import datetime
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
-from config import RAW_DATA_PATH, CELEBRITIES
+from config import RAW_DATA_PATH, CELEBRITIES, SERP_API_KEY
 
 
-def get_trends(keywords: list, timeframes: list) -> pd.DataFrame:
+def get_trends(keyword: str, timeframe: str) -> pd.DataFrame:
     """
-    Get Google Trends data for the given keywords and timeframes
+    Get Google Trends data for the given keyword and timeframe using SERPAPI
     """
-    pytrend = TrendReq()
-    trends_list = []
+    params = {
+        "engine": "google_trends",
+        "q": keyword,
+        "date": timeframe,
+        "api_key": SERP_API_KEY,
+    }
+    search = GoogleSearch(params)
+    results = search.get_dict()
 
-    for timeframe in timeframes:
-        while True:
-            try:
-                pytrend.build_payload(kw_list=keywords, timeframe=timeframe)
-                trends_df = pytrend.interest_over_time()
-                if trends_df.empty:
-                    print(
-                        f"No data found for keywords: {keywords} in timeframe: {timeframe}"
-                    )
-                    break
-                trends_list.append(trends_df)
-                break
-            except Exception as e:
-                if "429" in str(e):
-                    print("Too many requests. Waiting for 60 seconds...")
-                    time.sleep(60)
-                else:
-                    print(f"An error occurred: {e}")
-                    break
-
-    if trends_list:
-        trends = pd.concat(trends_list, axis=0)
-        return trends
+    if "timeline_data" in results.get("interest_over_time", {}):
+        trends_data = results["interest_over_time"]["timeline_data"]
+        data = []
+        for entry in trends_data:
+            date = entry["date"]
+            value = entry["values"][0]["value"]
+            data.append([date, value])
+        trends_df = pd.DataFrame(data, columns=["Date", "Value"])
+        return trends_df
     else:
+        print(f"No data found for keyword: {keyword} in timeframe: {timeframe}")
         return pd.DataFrame()
-
-
-def process_keywords(keywords: list, timeframes: list) -> pd.DataFrame:
-    """
-    Process the keywords
-    """
-    trends_file_path = os.path.join(RAW_DATA_PATH, "google_trends.csv")
-
-    print(f"Processing Google Trends data for keywords: {keywords}...")
-    print(f"Timeframes: {timeframes}")
-
-    trends_df = get_trends(keywords, timeframes)
-
-    if not trends_df.empty:
-        # Saving Google Trends data to file
-        trends_df.to_csv(trends_file_path)
-        print(f"Saved Google Trends data to {trends_file_path}")
-    else:
-        print(f"No trends data to save for keywords: {keywords}")
-
-    return trends_df
 
 
 def convert_date_format(date_str):
@@ -85,12 +56,11 @@ if __name__ == "__main__":
         print(f"Start Date: {start_date}")
         print(f"End Date: {end_date}")
 
-        timeframes = [f"{start_date} {end_date}"]
-        keywords = [search_term]
-        trends_df = process_keywords(keywords, timeframes)
+        timeframe = [f"{start_date} {end_date}"]
+        trends_df = get_trends(search_term, timeframe)
 
         if not trends_df.empty:
-            trends_df.to_csv(comments_file_path)
+            trends_df.to_csv(comments_file_path, index=False)
             print(f"Saved trends data for {name} to {comments_file_path}")
         else:
             print(f"No trends data found for {name} within the specified dates.")
