@@ -59,7 +59,9 @@ def remove_emoji(df: pd.DataFrame) -> pd.DataFrame:
     Remove emojis from the text
     """
     for i in tqdm(df.index):
-        df.at[i, "text"] = emoji.replace_emoji(df.at[i, "text"], replace="")
+        text = df.at[i, "text"]
+        if isinstance(text, str):  # Check if text is a string
+            df.at[i, "text"] = emoji.replace_emoji(text, replace="")
 
     return df
 
