@@ -33,7 +33,7 @@ def get_video_id(
         "type": "video",
         "publishedBefore": publish_before,
         "publishedAfter": publish_after,
-        "order": "date",
+        "order": "relevance",
     }
 
     while len(video_id_list) < max_video_count:
@@ -71,7 +71,12 @@ def fetch_comments(video_id: str, max_comments_per_video: int = MAX_COMMENTS_PER
     list_video_id = []
     url = "https://yt.lemnoslife.com/noKey/commentThreads"
 
-    parameters = {"part": "id,snippet", "maxResults": "50", "videoId": video_id}
+    parameters = {
+        "part": "id,snippet",
+        "maxResults": "50",
+        "videoId": video_id,
+        "order": "relevance",
+    }
     total_comments = 0
 
     while total_comments < max_comments_per_video:
