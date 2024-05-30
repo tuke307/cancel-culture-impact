@@ -3,15 +3,41 @@ import os
 import sys
 from serpapi import GoogleSearch
 from datetime import datetime
+from pytrends.request import TrendReq
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 from config import RAW_DATA_PATH, CELEBRITIES, SERP_API_KEY
 
 
-def get_trends(keyword: str, timeframe: str) -> pd.DataFrame:
+def get_trends_pytrends(keyword: str, start_date: str, end_date: str) -> pd.DataFrame:
+    """
+    Get Google Trends data for the given keyword and timeframe using pytrends
+    """
+    pytrends = TrendReq(hl="en-US", tz=360)
+    timeframe = f"{start_date} {end_date}"
+    pytrends.build_payload([keyword], cat=0, timeframe=timeframe, geo="", gprop="")
+
+    # Fetch interest over time
+    trends_data = pytrends.interest_over_time()
+
+    if not trends_data.empty:
+        # Drop the 'isPartial' column if it exists
+        if "isPartial" in trends_data.columns:
+            trends_data = trends_data.drop(columns=["isPartial"])
+        return trends_data
+    else:
+        print(
+            f"No data found for keyword: {keyword} in timeframe: {start_date} to {end_date}"
+        )
+        return pd.DataFrame()
+
+
+def get_trends_serpapi(keyword: str, start_date: str, end_date: str) -> pd.DataFrame:
     """
     Get Google Trends data for the given keyword and timeframe using SERPAPI
     """
+    timeframe = [f"{start_date} {end_date}"]
+
     params = {
         "engine": "google_trends",
         "q": keyword,
@@ -56,8 +82,8 @@ if __name__ == "__main__":
         print(f"Start Date: {start_date}")
         print(f"End Date: {end_date}")
 
-        timeframe = [f"{start_date} {end_date}"]
-        trends_df = get_trends(search_term, timeframe)
+        # trends_df = get_trends_pytrends(search_term, start_date, end_date)
+        trends_df = get_trends_serpapi(search_term, start_date, end_date)
 
         if not trends_df.empty:
             trends_df.to_csv(comments_file_path, index=False)
