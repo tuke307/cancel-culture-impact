@@ -1,3 +1,9 @@
+"""
+This script fetches Google Trends data for the given search terms using pytrends and SERPAPI.
+
+NOTE: not used in the final project. use the website to get the data instead.
+"""
+
 import pandas as pd
 import os
 import sys
