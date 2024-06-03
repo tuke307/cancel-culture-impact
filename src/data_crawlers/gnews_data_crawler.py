@@ -60,6 +60,7 @@ def crawl_gnews_data(
     page = 1
     total_articles = 0
     total_articles_showed = False
+    articles_processed = 0
 
     while True:
         articles = get_gnews_data(
@@ -71,7 +72,8 @@ def crawl_gnews_data(
         )
 
         if not total_articles_showed:
-            print(f"A total of {articles['totalArticles']} articles found to crawl")
+            total_articles = articles["totalArticles"]
+            print(f"A total of {total_articles} articles found to crawl")
             total_articles_showed = True
 
         data = []
@@ -89,8 +91,10 @@ def crawl_gnews_data(
             )
         append_to_csv(file_path, data)
 
-        total_articles += len(data)
-        print(f"Page {page} - {len(data)} articles retrieved, total: {total_articles}")
+        articles_processed += len(data)
+        print(
+            f"Page {page}/{int(total_articles/50)} crawled. processed articles: {articles_processed}"
+        )
 
         page += 1
 
