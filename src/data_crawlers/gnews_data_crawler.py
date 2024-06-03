@@ -1,8 +1,9 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 import requests
 import os
 import time as t
 import sys
+import math
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 
@@ -28,7 +29,7 @@ def get_gnews_data(
         "q": search_term,
         "max": 50,  # this is the maximum
         "expand": "content",
-        "sortby": "publishedAt",  # "relevance", "publishedAt
+        "sortby": "relevance",  # "relevance", "publishedAt
         "page": page,
     }
     response = requests.get(url, params=params)
@@ -57,49 +58,63 @@ def crawl_gnews_data(
     if os.path.exists(file_path):
         os.remove(file_path)
 
-    page = 1
-    total_articles = 0
-    total_articles_showed = False
-    articles_processed = 0
+    current_start_date = start_date
+    while current_start_date < end_date:
+        # 30 days at a time
+        current_end_date = current_start_date + timedelta(days=30)
+        if current_end_date > end_date:
+            current_end_date = end_date
 
-    while True:
-        articles = get_gnews_data(
-            api_key=GNEWS_API_KEY,
-            begin_date=start_date,
-            end_date=end_date,
-            search_term=search_term,
-            page=page,
-        )
+        print(f"range: {current_start_date} to {current_end_date}")
 
-        if not total_articles_showed:
-            total_articles = articles["totalArticles"]
-            print(f"A total of {total_articles} articles found to crawl")
-            total_articles_showed = True
+        page = 1
+        total_articles = 0
+        total_articles_showed = False
+        articles_processed = 0
 
-        data = []
-        if len(articles["articles"]) == 0:
-            break
-        for article in articles["articles"]:
-            data.append(
-                {
-                    "title": article["title"],
-                    "content": article["content"],
-                    "published_on": article["publishedAt"],
-                    "link": article["source"]["url"],
-                    "source": article["source"]["name"],
-                }
+        while True:
+            articles = get_gnews_data(
+                api_key=GNEWS_API_KEY,
+                begin_date=current_start_date,
+                end_date=current_end_date,
+                search_term=search_term,
+                page=page,
             )
-        append_to_csv(file_path, data)
 
-        articles_processed += len(data)
-        print(
-            f"Page {page}/{int(total_articles/50)} crawled. processed articles: {articles_processed}"
-        )
+            if not articles:
+                break
 
-        page += 1
+            if not total_articles_showed:
+                total_articles = articles["totalArticles"]
+                print(f"A total of {total_articles} articles found to crawl")
+                total_articles_showed = True
 
-        # Pause for 0.2 second to avoid exceeding the rate limit of 6 requests per second
-        t.sleep(0.2)
+            data = []
+            if len(articles["articles"]) == 0:
+                break
+            for article in articles["articles"]:
+                data.append(
+                    {
+                        "title": article["title"],
+                        "content": article["content"],
+                        "published_on": article["publishedAt"],
+                        "link": article["source"]["url"],
+                        "source": article["source"]["name"],
+                    }
+                )
+            append_to_csv(file_path, data)
+
+            articles_processed += len(data)
+            print(
+                f"Page {page}/{math.ceil(total_articles/50)} crawled. processed articles: {articles_processed}"
+            )
+
+            page += 1
+
+            # Pause for 0.2 second to avoid exceeding the rate limit of 6 requests per second
+            t.sleep(0.2)
+
+        current_start_date = current_end_date + timedelta(seconds=1)
 
     print(f"Total articles retrieved: {total_articles}")
 
