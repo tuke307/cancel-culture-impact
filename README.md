@@ -6,6 +6,8 @@
 
 [sources doc](https://docs.google.com/document/d/1KJt7lThCYl5oBB3CRr8RVsBoyyE6Fn29DxnZULeHuec/edit?usp=sharing)
 
+[documentation](https://docs.google.com/document/d/1nNHxZ_cACF8o5krTa1TJLUIaHWOqv7aSBus3Gc9qCMY/edit?usp=sharing)
+
 ## requirements
 
 * Python >=3.7
