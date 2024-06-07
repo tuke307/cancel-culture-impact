@@ -48,7 +48,7 @@ def crawl_gnews_data(
     """
     start_date = datetime.strptime(start_date, "%Y-%m-%dT%H:%M:%SZ")
     end_date = datetime.strptime(end_date, "%Y-%m-%dT%H:%M:%SZ")
-    file_path = os.path.join(RAW_DATA_PATH, f"{name}_articles.csv")
+    file_path = os.path.join(RAW_DATA_PATH, f"{name}_articles_gnews.csv")
 
     print("Crawling GNews data...")
     print(f"Search term: {search_term}")
