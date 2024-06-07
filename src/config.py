@@ -17,5 +17,5 @@ RAW_DATA_PATH = os.path.join(CWD, "data", "raw")
 PROCESSED_DATA_PATH = os.path.join(CWD, "data", "processed")
 
 # Celebrities
-config_path = os.path.join(CWD, "src", "config.json")
+config_path = os.path.join(CWD, "config.json")
 CELEBRITIES = load_json(config_path)
