@@ -31,3 +31,12 @@ pip install --upgrade pip
 
 ## environment variables
 * copy and rename the `.env.sample` file to `.env`
+
+## LibreTranslate
+* clone https://github.com/LibreTranslate/LibreTranslate locally
+* execute these statements
+
+```bash
+pip install libretranslate
+libretranslate --update-models
+```

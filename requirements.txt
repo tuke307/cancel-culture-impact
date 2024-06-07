@@ -7,8 +7,9 @@ numpy
 matplotlib
 python-dotenv
 seaborn
-googletrans==4.0.0rc1
 requests
 emoji
 google-search-results
 pytrends
+spacy
+ipykernel
