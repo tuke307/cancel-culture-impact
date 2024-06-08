@@ -8,6 +8,7 @@ import spacy
 import requests
 import json
 
+
 nlp = spacy.load("en_core_web_sm")
 stop_words = set(stopwords.words("english"))
 
@@ -18,7 +19,7 @@ nltk.download("stopwords")
 nltk.download("averaged_perceptron_tagger")
 
 
-def detect_and_translate(text):
+def libre_translate(text):
     """
     Detect language of a title using LibreTranslate API
     """
@@ -33,6 +34,8 @@ def detect_and_translate(text):
         # If the request was successful, get the detected language
         if response.status_code == 200:
             return response.json()
+        else:
+            return "error"
     except Exception as e:
         print(f"Error detecting language for text: '{text}': {e}")
         return "error"
@@ -64,4 +67,4 @@ def remove_emojis(text):
     """
     Remove emojis from the text
     """
-    return "".join([char for char in text if char not in emoji.UNICODE_EMOJI])
+    return emoji.replace_emoji(text, replace="")
