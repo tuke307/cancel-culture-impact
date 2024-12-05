@@ -1,5 +1,7 @@
 # CancelCultureImpact
 
+![result](./images/result.png)
+
 ## documents
 
 [proposal doc](https://docs.google.com/document/d/1S0muNYwRjl7VOUzLw-v1KjDehOk7LdciBJQU9CxBlw4/edit?usp=sharing)
